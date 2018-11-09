@@ -156,6 +156,19 @@ class Table(BaseInfo):
             return
         self.tables[playerNum][0].spendMana(card.cost)
         self.tables[playerNum].append(card)
+    
+    def getCurMana(self, playerNum):
+        return self.tables[playerNum][0].curMana
+    
+    def getValidActions(self, playerNum):
+        validActions = []
+        for unit in range(1, len(self.tables[playerNum]))
+            if self.tables[playerNum][unit].isActive():
+                for i in range(len(self.tables)):
+                    if (i != playerNum):
+                        for j in range(len(self.tables[i])):
+                            validActions.append(("attack", [playerNum, unit], [i, j]))
+        return validActions
 
 class Grave:
     graves = []
@@ -200,6 +213,13 @@ class BattleGround:
     def isFull(self, playerNum):
         return self.table.isFull(playerNum)
     
+    def getCurMana(self, playerNum):
+        return table.getCurMana(playerNum)
+    
+    def getValidActions(self, playerNum):
+        return table.getValidActions(playerNum)
+        
+    
 class Deck():
     core = None
     piles = []
@@ -215,14 +235,26 @@ class Session:
     battleGround = None
     piles = []
     turn = 0
+    globalTurn = 0
     playersNum = 0
     
+    decks = None
+    
     def __init__(self, decks):
-        playersNum = len(decks)
+        self.decks = copy.deepcopy(decks)
+        init()
+    
+    def init(self):
+        playersNum = len(self.decks)
         self.piles = [decks[i].piles.copy() for i in range(playersNum)]
         self.battleGround = BattleGround([decks[i].core for i in range(playersNum)])
         self.turn = 0
+        self.globalTurn = 0
         self.playersNum = playersNum
+        
+    def reset():
+        init()
+        return getObservation()
     
     def action(self, action):
         if(action[0] == "attack"):
@@ -233,9 +265,11 @@ class Session:
         elif(action[0] == "skip"):
             self.turn += 1
             self.turn %= self.playersNum
-        return self.getCurState() 
+            if(self.turn == 0):
+                self.globalTurn += 1
+        return self.getObservation() 
     
-    def getCurState(self):
+    def getObservation(self):
         state = dict()
         state["battleGround"] = self.battleGround.getCurState(self.turn)
         state["piles"] = []
@@ -243,7 +277,12 @@ class Session:
             state["piles"].append([j.getCurState(self.turn) for j in pile])
         state["winner"] = self.battleGround.isEnd()
         state["turn"] = self.turn
+        state["end"] = (state["winner"] != -1) or (self.globalTurn > 60)
         return state
+    
+    def getValidActions(self):
+        curMana = battleGround.getCurMana(self.turn)
+        return [("skip")] + self.battleGround.getValidActions(self.turn) + self.piles[self.turn].getValidActions(curMana)
         
     
     
