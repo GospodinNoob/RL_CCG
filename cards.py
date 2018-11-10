@@ -18,7 +18,7 @@ class Card(BaseInfo):
         self.owner = owner
     
 class Unit:
-    active = False
+    wasActive = True
     maxHealth = 0
     curHealth = 0
     armour = 0
@@ -26,13 +26,19 @@ class Unit:
     
     def dealDamageFrom(self, attacker):
         self.curHealth -= attacker.damage - self.armour
-        attacker.activated()
+        attacker.activate()
         
     def isAlive(self):
         return self.curHealth > 0
     
-    def activated(self):
-        self.active = True
+    def activate(self):
+        self.wasActive = True
+        
+    def isActive(self):
+        return not self.wasActive
+    
+    def newTurn(self):
+        self.wasActive = False
     
 class Core(Unit):
     maxMana = 0
@@ -54,6 +60,13 @@ class Core(Unit):
         
     def spendMana(self, cost):
         self.curMana -= cost
+        
+    def newTurn(self):
+        super(Core, self).newTurn()
+        self.maxMana += 1
+        self.maxMana %= 10
+        self.curMana = self.maxMana 
+        
 
     
 
@@ -61,7 +74,7 @@ class Minion(Card, Unit):
             
     def getCurState(self, playerNum = -1, visible = False):
         if(self.owner == playerNum) or visible:
-            return (self.cost, self.damage, self.armour, self.curHealth, self.maxHealth, self.active)
+            return (self.cost, self.damage, self.armour, self.curHealth, self.maxHealth, self.wasActive)
         return None
     
     def __init__(self, objList = None):
@@ -115,6 +128,13 @@ class Pile(BaseInfo):
     def getCurState(self, playerNum):
         return (len(self.cards), self.Top().getCurState(playerNum, False))
     
+    def getValidActions(self, curMana, pileId):
+        validActions = []
+        top = self.Top()
+        if top != None and top.cost <= curMana:
+            validActions.append(("play", pileId))
+        return validActions
+    
 class Table(BaseInfo):
     tables = None
     maxMinions = 7
@@ -160,9 +180,13 @@ class Table(BaseInfo):
     def getCurMana(self, playerNum):
         return self.tables[playerNum][0].curMana
     
+    def newTurn(self, playerNum):
+        for i in self.tables[playerNum]:
+            i.newTurn()
+    
     def getValidActions(self, playerNum):
         validActions = []
-        for unit in range(1, len(self.tables[playerNum]))
+        for unit in range(1, len(self.tables[playerNum])):
             if self.tables[playerNum][unit].isActive():
                 for i in range(len(self.tables)):
                     if (i != playerNum):
@@ -214,10 +238,13 @@ class BattleGround:
         return self.table.isFull(playerNum)
     
     def getCurMana(self, playerNum):
-        return table.getCurMana(playerNum)
+        return self.table.getCurMana(playerNum)
     
     def getValidActions(self, playerNum):
-        return table.getValidActions(playerNum)
+        return self.table.getValidActions(playerNum)
+    
+    def newTurn(self, playerNum):
+        self.table.newTurn(playerNum)
         
     
 class Deck():
@@ -242,19 +269,19 @@ class Session:
     
     def __init__(self, decks):
         self.decks = copy.deepcopy(decks)
-        init()
+        self.init()
     
     def init(self):
         playersNum = len(self.decks)
-        self.piles = [decks[i].piles.copy() for i in range(playersNum)]
-        self.battleGround = BattleGround([decks[i].core for i in range(playersNum)])
+        self.piles = [self.decks[i].piles.copy() for i in range(playersNum)]
+        self.battleGround = BattleGround([self.decks[i].core for i in range(playersNum)])
         self.turn = 0
         self.globalTurn = 0
         self.playersNum = playersNum
         
     def reset():
-        init()
-        return getObservation()
+        self.init()
+        return self.getObservation()
     
     def action(self, action):
         if(action[0] == "attack"):
@@ -262,11 +289,13 @@ class Session:
         elif(action[0] == "play"):
             if (not self.battleGround.isFull(self.turn)):
                 self.battleGround.Play(self.turn, self.piles[self.turn][action[1]].GetCard())
-        elif(action[0] == "skip"):
+        elif(action == "skip"):
             self.turn += 1
             self.turn %= self.playersNum
             if(self.turn == 0):
                 self.globalTurn += 1
+            print("skip")
+            self.battleGround.newTurn(self.turn)
         return self.getObservation() 
     
     def getObservation(self):
@@ -281,8 +310,11 @@ class Session:
         return state
     
     def getValidActions(self):
-        curMana = battleGround.getCurMana(self.turn)
-        return [("skip")] + self.battleGround.getValidActions(self.turn) + self.piles[self.turn].getValidActions(curMana)
+        curMana = self.battleGround.getCurMana(self.turn)
+        validActions = [("skip")] + self.battleGround.getValidActions(self.turn)
+        for i, pile in enumerate(self.piles[self.turn]):
+            validActions += pile.getValidActions(curMana, i)
+        return validActions
         
     
     
