@@ -126,6 +126,9 @@ class Pile(BaseInfo):
         return self.cards[0]
     
     def getCurState(self, playerNum):
+        top = self.Top()
+        if top == None:
+            return (0, None)
         return (len(self.cards), self.Top().getCurState(playerNum, False))
     
     def getValidActions(self, curMana, pileId):
@@ -279,7 +282,7 @@ class Session:
         self.globalTurn = 0
         self.playersNum = playersNum
         
-    def reset():
+    def reset(self):
         self.init()
         return self.getObservation()
     
@@ -294,7 +297,6 @@ class Session:
             self.turn %= self.playersNum
             if(self.turn == 0):
                 self.globalTurn += 1
-            print("skip")
             self.battleGround.newTurn(self.turn)
         return self.getObservation() 
     
