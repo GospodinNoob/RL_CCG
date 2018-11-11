@@ -186,6 +186,9 @@ class Table(BaseInfo):
     def newTurn(self, playerNum):
         for i in self.tables[playerNum]:
             i.newTurn()
+        
+    def getUnitsNum(self, playerNum):
+        return len(self.tables[playerNum]) - 1
     
     def getValidActions(self, playerNum):
         validActions = []
@@ -249,6 +252,9 @@ class BattleGround:
     def newTurn(self, playerNum):
         self.table.newTurn(playerNum)
         
+    def getUnitsNum(self, playerNum):
+        return self.table.getUnitsNum(playerNum)
+        
     
 class Deck():
     core = None
@@ -272,18 +278,18 @@ class Session:
     
     def __init__(self, decks):
         self.decks = copy.deepcopy(decks)
-        self.init()
+        self.init(decks)
     
-    def init(self):
-        playersNum = len(self.decks)
-        self.piles = [self.decks[i].piles.copy() for i in range(playersNum)]
-        self.battleGround = BattleGround([self.decks[i].core for i in range(playersNum)])
+    def init(self, decks):
+        playersNum = len(decks)
+        self.piles = [decks[i].piles.copy() for i in range(playersNum)]
+        self.battleGround = BattleGround([decks[i].core for i in range(playersNum)])
         self.turn = 0
         self.globalTurn = 0
         self.playersNum = playersNum
         
     def reset(self):
-        self.init()
+        self.init(copy.deepcopy(self.decks))
         return self.getObservation()
     
     def action(self, action):
@@ -313,9 +319,11 @@ class Session:
     
     def getValidActions(self):
         curMana = self.battleGround.getCurMana(self.turn)
+        unitsOnTable = self.battleGround.getUnitsNum(self.turn)
         validActions = [("skip")] + self.battleGround.getValidActions(self.turn)
-        for i, pile in enumerate(self.piles[self.turn]):
-            validActions += pile.getValidActions(curMana, i)
+        if(unitsOnTable < 7):
+            for i, pile in enumerate(self.piles[self.turn]):
+                validActions += pile.getValidActions(curMana, i)
         return validActions
         
     
