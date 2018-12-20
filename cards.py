@@ -292,6 +292,10 @@ class Session:
         self.init(copy.deepcopy(self.decks))
         return self.getObservation()
     
+    def getNextState(self, action):
+        nextState = copy.deepcopy(self)
+        return nextState.action(action)
+    
     def action(self, action):
         if(action[0] == "attack"):
             self.battleGround.Attack(action[1], action[2])
