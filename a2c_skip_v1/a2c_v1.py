@@ -44,7 +44,6 @@ class ActorNetwork(nn.Module):
     def get_qvalues(self, states):
         states = Variable(torch.FloatTensor(np.asarray(states)))
         qvalues = self.forward(states)
-        out = F.log_softmax(qvalues)
         return qvalues
 
 class ValueNetwork(nn.Module):
