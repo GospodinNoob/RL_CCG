@@ -114,9 +114,8 @@ class Hand(BaseInfo):
             cards_obs.append(card.getCurState(playerNum, False))
         return (len(self.cards), cards_obs)
     
-    def getValidActions(self, curMana, pileId):
+    def getValidActions(self, curMana):
         validActions = []
-        top = self.Top()
         for i, card in enumerate(self.cards):
             if(card.cost <= curMana):
                 validActions.append(("play_hand", i))
@@ -361,9 +360,9 @@ class Session:
         state["hands"] = []
         for i, hand in enumerate(self.hands):
             state["hands"].append(hand.getCurState(self.turn))
-        state["winner"] = self.battleGround.isEnd()
+        state["loser"] = self.battleGround.isEnd()
         state["turn"] = self.turn
-        state["end"] = (state["winner"] != -1) or (self.globalTurn > 60)
+        state["end"] = (state["loser"] != -1) or (self.globalTurn > 60)
         return state
     
     def getValidActions(self):
@@ -373,6 +372,7 @@ class Session:
         if(unitsOnTable < 7):
             for i, pile in enumerate(self.piles[self.turn]):
                 validActions += pile.getValidActions(curMana, i)
+            validActions += self.hands[self.turn].getValidActions(curMana)
         if(not self.hands[self.turn].isFull()):
             for i, pile in enumerate(self.piles[self.turn]):
                 if(not pile.isEmpty()):
