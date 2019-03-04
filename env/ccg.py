@@ -308,6 +308,9 @@ class Session:
     turn = 0
     globalTurn = 0
     playersNum = 0
+    observation = None
+    validActionsEnv = None
+    validActions = None
     
     decks = None
     
@@ -324,13 +327,61 @@ class Session:
         self.globalTurn = 0
         self.playersNum = playersNum
         
+    def envActionFromAction(action):
+        #skip
+        env_action = ("skip")
+        if action == 0:
+            return env_action
+
+        #attack core
+        action -= 1
+        if(action < 7):
+            env_action = ("attack", [self.turn, action], [1 - self.turn, 0])
+            return env_action
+
+        #attack unit
+        action -= 7
+        if(action < 49):
+            env_action = ("attack", [self.turn, action // 7], [1 - self.turn, action % 7])
+            return env_action
+
+        #play from pile
+        action -= 49
+        if(action < 4):
+            env_action = ("play", action)
+            return env_action
+
+        #play from hand
+        action -= 4
+        if(action < 6):
+            env_action = ("play_hand", action)
+            return env_action
+
+        #move from pile to hand
+        action -= 6
+        env_action = ("move", action)
+        if action < 4:
+            return env_action
+        return None
+        
     def reset(self):
         self.init(copy.deepcopy(self.decks))
-        return self.getObservation()
+        return processNewStateInfo()
     
     def getNextState(self, action):
         nextState = copy.deepcopy(self)
         return nextState.action(action)
+    
+    def processNewStateInfo():
+        self.observation = processObservation()
+        self.validActionsEnv = getValidActions()
+        self.validActions = []
+        for i in range(71):
+            if envActionFromAction(i) in self.validActionsEnv:
+                self.validActions.append(1)
+            else:
+                self.validActions.append(0)
+        return self.observation, self.validActions, self.validActionsEnv
     
     def action(self, action):
         if(action[0] == "attack"):
@@ -349,9 +400,9 @@ class Session:
             if(self.turn == 0):
                 self.globalTurn += 1
             self.battleGround.newTurn(self.turn)
-        return self.getObservation() 
+        return processNewStateInfo()
     
-    def getObservation(self):
+    def processObservation(self):
         state = dict()
         state["battleGround"] = self.battleGround.getCurState(self.turn)
         state["piles"] = []
