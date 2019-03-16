@@ -10,7 +10,7 @@ from torch.autograd import Variable
 class Agent(nn.Module):
     replay = None
     
-    def getAction(observation, validEnvActions, validActions):
+    def getAction(self, observation, validEnvActions, validActions):
         pass
     
     def record(obs, action, n_obs, reward, done):
@@ -20,7 +20,7 @@ class Agent(nn.Module):
         pass
     
 class ARagent(Agent):
-    def getAction(observation, validEnvActions, validActions):
+    def getAction(self, observation, validActions, validEnvActions):
         if len(validEnvActions) > 1:
             return random.choice(validEnvActions[1:])
         return validEnvActions[0]

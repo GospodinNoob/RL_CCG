@@ -327,7 +327,7 @@ class Session:
         self.globalTurn = 0
         self.playersNum = playersNum
         
-    def envActionFromAction(action):
+    def envActionFromAction(self, action):
         #skip
         env_action = ("skip")
         if action == 0:
@@ -366,24 +366,26 @@ class Session:
         
     def reset(self):
         self.init(copy.deepcopy(self.decks))
-        return processNewStateInfo()
+        return self.processNewStateInfo()
     
     def getNextState(self, action):
         nextState = copy.deepcopy(self)
         return nextState.action(action)
     
-    def processNewStateInfo():
-        self.observation = processObservation()
-        self.validActionsEnv = getValidActions()
+    def processNewStateInfo(self):
+        self.observation = self.processObservation()
+        self.validActionsEnv = self.getValidActions()
         self.validActions = []
         for i in range(71):
-            if envActionFromAction(i) in self.validActionsEnv:
+            if self.envActionFromAction(i) in self.validActionsEnv:
                 self.validActions.append(1)
             else:
                 self.validActions.append(0)
         return self.observation, self.validActions, self.validActionsEnv
     
     def action(self, action):
+        if isinstance(action, int):
+            action = self.envActionFromAction(action)
         if(action[0] == "attack"):
             self.battleGround.Attack(action[1], action[2])
         elif(action[0] == "move"):
@@ -400,7 +402,7 @@ class Session:
             if(self.turn == 0):
                 self.globalTurn += 1
             self.battleGround.newTurn(self.turn)
-        return processNewStateInfo()
+        return self.processNewStateInfo()
     
     def processObservation(self):
         state = dict()
