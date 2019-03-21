@@ -223,6 +223,15 @@ class Table(BaseInfo):
     def getUnitsNum(self, playerNum):
         return len(self.tables[playerNum]) - 1
     
+    def getHealthAdvantage(self, playerId):
+        advantage = 0
+        for i, table in enumerate(self.tables):
+            if (i == playerId):
+                advantage += table[0].curHealth
+            else:
+                advantage -= table[0].curHealth
+        return advantage
+    
     def getValidActions(self, playerNum):
         validActions = []
         for unit in range(1, len(self.tables[playerNum])):
@@ -287,6 +296,9 @@ class BattleGround:
         
     def getUnitsNum(self, playerNum):
         return self.table.getUnitsNum(playerNum)
+    
+    def getHealthAdvantage(self, playerId):
+        return self.table.getHealthAdvantage(playerId)
     
         
     
@@ -363,6 +375,16 @@ class Session:
         if action < 4:
             return env_action
         return None
+    
+    def actionFromEnvAction(self, envAction):
+        #TODO : rework
+        for i in range(71):
+            if envAction == self.envActionFromAction(i):
+                return i
+        return -1
+    
+    def getHealthAdvantage(self, playerId):
+        return self.battleGround.getHealthAdvantage(playerId)
         
     def reset(self):
         self.init(copy.deepcopy(self.decks))
