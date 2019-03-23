@@ -5,6 +5,7 @@ from torch.autograd import Variable
 import ccg
 import copy
 import numpy as np
+import utils
 
 class ValueNetwork(nn.Module):
         def __init__(self, MAIN_SIZE):
@@ -30,8 +31,8 @@ class ActorNetwork(nn.Module):
     def __init__(self, state, VEC_SIZE = 100, epsilon = 0.5):
         super().__init__()
         
-        self.CARD_SIZE = len(self.observationMinion(ccg.Minion().getCurState()))
-        state = self.createStateObservation(state)
+        self.CARD_SIZE = len(utils.observationMinion(ccg.Minion().getCurState()))
+        state = utils.createStateObservation(state)
         self.MAIN_SIZE = len(state["main"])
         self.CORE_SIZE = len(state["cores"][0])
         self.PILE_SIZE = len(state["piles"][0][0])
@@ -95,100 +96,6 @@ class ActorNetwork(nn.Module):
             nn.Linear(VEC_SIZE, 512,),  #[field, pile]
             nn.ELU(), 
             nn.Linear(512, 1))
-        
-        
-    def observationMinion(self, minion):
-        state = list(minion)
-        state[5] = int(state[5])
-        return np.array(state)
-    
-    def observationTable(self, table, turn):
-        tables = copy.deepcopy(table)
-        for i in tables:
-            #TODO : don't calc empty minions
-            for j in range(len(i), 8):
-                i.append(np.array([-1] * self.CARD_SIZE))
-            i[0] = self.observationCore(i[0])
-            for j in range(1, len(i)):
-                i[j] = self.observationMinion(i[j])
-            buf = i[1:]
-            #random.shuffle(buf)
-            i[1:] = buf
-        tables[0], tables[turn] = tables[turn], tables[0]
-        tables_copy = copy.deepcopy(tables)
-
-        for i in range(len(tables)):
-            tables[i] = np.hstack(tuple(tables[i]))
-            for j in range(len(tables_copy[i])):
-                tables_copy[i][j] = tables_copy[i][j].tolist()
-        return np.hstack(tuple(tables)), tables_copy
-
-    def observationCore(self, core):
-        return np.array(list(core))
-
-    def observationPile(self, pile):
-        pileCopy = copy.deepcopy(pile)
-        #random.shuffle(pileCopy)
-        for i in range(len(pileCopy)):
-            pileCopy[i] = list(pileCopy[i])
-            if pileCopy[i][1] == None:
-                pileCopy[i][1] = np.array([-1] * self.CARD_SIZE)
-            else:
-                pileCopy[i][1] = observationMinion(pileCopy[i][1])
-            pileCopy[i] = [pileCopy[i][0]] + pileCopy[i][1].tolist()
-        return np.hstack(tuple(pileCopy)), pileCopy
-
-    def observationHand(self, hand):
-        handCopy = copy.deepcopy(hand)
-        #random.shuffle(pileCopy)
-        for i in range(len(hand[1]), 6):
-            handCopy[1].append(None)
-        for i in range(len(handCopy[1])):
-            if handCopy[1][i] == None:
-                handCopy[1][i] = np.array([-1] * self.CARD_SIZE)
-            else:
-                handCopy[1][i] = observationMinion(handCopy[1][i])
-        return [handCopy[0]] + np.hstack(tuple(handCopy[1])), handCopy[1]
-
-    def createStateObservation(self, state):
-
-        observations = dict()
-        observations["table"], tables = self.observationTable(state["battleGround"]["table"], state["turn"])
-        observations["piles"] = []
-        observations["hands"] = []
-        pilesObs = []
-        handsObs = []
-
-        for i in state["piles"]:
-            obs, obj = self.observationPile(i)
-            observations["piles"].append(obj)
-            pilesObs.append(obs)
-
-        for i in state["hands"]:
-            obs, obj = self.observationHand(i)
-            observations["hands"].append(obj)
-            handsObs.append(obs)
-        observations["hands"][0], observations["hands"][state["turn"]] = observations["hands"][state["turn"]], observations["hands"][0]
-        handsObs[0], handsObs[state["turn"]] = handsObs[state["turn"]], handsObs[0]
-        handsObs = np.hstack(tuple(handsObs))
-
-        observations["piles"][0], observations["piles"][state["turn"]] = observations["piles"][state["turn"]], observations["piles"][0]
-        pilesObs[0], pilesObs[state["turn"]] = pilesObs[state["turn"]], pilesObs[0]
-        pilesObs = np.hstack(tuple(pilesObs))
-
-        observations["main"] = observations["table"].tolist() + pilesObs.tolist() + handsObs.tolist()
-
-        cores = []
-        units = []
-        for i in tables:
-            cores.append(i[0])
-            units.append(i[1:])
-
-        observations["cores"] = cores
-        observations["units"] = units
-
-        return observations
-
 
     def parse_state(self, state):
         main = np.array(state["main"], dtype=np.float32)[None, None, None, :]

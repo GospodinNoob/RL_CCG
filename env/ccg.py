@@ -406,8 +406,10 @@ class Session:
         return self.observation, self.validActions, self.validActionsEnv
     
     def action(self, action):
-        if isinstance(action, int):
+        print(action, type(action))
+        if type(action) == int:
             action = self.envActionFromAction(action)
+            print(action)
         if(action[0] == "attack"):
             self.battleGround.Attack(action[1], action[2])
         elif(action[0] == "move"):
