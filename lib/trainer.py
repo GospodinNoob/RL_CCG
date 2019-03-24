@@ -1,4 +1,5 @@
 import ccg
+import utils
 
 class Trainer():
     agents = []
@@ -26,13 +27,13 @@ class Trainer():
             
             n_steps -= 1
             action = curAgent.getAction(observation, validActions, validActionsEnv)
-            print(action)
-            n_observation, validActionsEnv, validActions = curSession.action(action)
+            n_observation, validActions, validActionsEnv = curSession.action(action)
             
             reward = oldAdv - curSession.getHealthAdvantage(turn)
-            curAgent.record(curAgent.parseState(observation), 
+            curAgent.record(0,
+                            utils.createStateObservation(observation),
                             [int(k == action) for k in range(self.n_actions)], 
-                            curAgent.parseState(n_observation), 
+                            n_observation, 
                             reward, 
                             observation["end"])
             

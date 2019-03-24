@@ -4,6 +4,15 @@ import copy
 
 CARD_SIZE = None
 
+def parse_state(state):
+    main = np.array(state["main"], dtype=np.float32)[None, None, None, :]
+    our_units = np.array(state["units"][0], dtype=np.float32)[None, :, None, :]
+    enemy_units = np.array(state["units"][1], dtype=np.float32)[None, None, :, :]
+    enemy_core = np.array([state["cores"][1]], dtype=np.float32)[None, None, :]
+    our_piles = np.array(state["piles"][0], dtype=np.float32)[None, :, None, :]
+    our_hand = np.array(state["hands"][0], dtype=np.float32)[None, None, :]
+    return main, our_units, enemy_units, enemy_core, our_piles, our_hand
+
 def observationMinion(minion):
     state = list(minion)
     state[5] = int(state[5])

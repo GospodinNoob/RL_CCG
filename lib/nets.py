@@ -8,8 +8,10 @@ import numpy as np
 import utils
 
 class ValueNetwork(nn.Module):
-        def __init__(self, MAIN_SIZE):
+        def __init__(self, state):
             super(ValueNetwork, self).__init__()
+            state = utils.createStateObservation(state)
+            MAIN_SIZE = len(state["main"])
             self.layers = nn.Sequential(
                 nn.Linear(MAIN_SIZE, 256),
                 nn.ReLU(),
@@ -97,17 +99,8 @@ class ActorNetwork(nn.Module):
             nn.ELU(), 
             nn.Linear(512, 1))
 
-    def parse_state(self, state):
-        main = np.array(state["main"], dtype=np.float32)[None, None, None, :]
-        our_units = np.array(state["units"][0], dtype=np.float32)[None, :, None, :]
-        enemy_units = np.array(state["units"][1], dtype=np.float32)[None, None, :, :]
-        enemy_core = np.array([state["cores"][1]], dtype=np.float32)[None, None, :]
-        our_piles = np.array(state["piles"][0], dtype=np.float32)[None, :, None, :]
-        our_hand = np.array(state["hands"][0], dtype=np.float32)[None, None, :]
-        return main, our_units, enemy_units, enemy_core, our_piles, our_hand
-
     def get_qvalues_from_state(self, state):
-        main, our_units, enemy_units, enemy_core, our_piles, our_hand = self.parse_state(state)
+        main, our_units, enemy_units, enemy_core, our_piles, our_hand = utils.parse_state(state)
         main = np.array([main])
         enemy_units = np.array([enemy_units])
         enemy_core = np.array([enemy_core])

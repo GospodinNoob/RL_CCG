@@ -15,10 +15,7 @@ class Agent():
     def getAction(self, observation, validActions, validEnvActions):
         pass
     
-    def record(self, obs, action, n_obs, reward, done):
-        pass
-    
-    def parseState():
+    def record(self, replay_id, obs, action, n_obs, reward, done):
         pass
     
     def train(self):
@@ -27,8 +24,12 @@ class Agent():
 class ARagent(Agent):
     def getAction(self, observation, validActions, validEnvActions):
         if len(validEnvActions) > 1:
-            return random.choice(validEnvActions[1:])
-        return validEnvActions[0]
+            validActionsList = []
+            for i in range(len(validActions)):
+                 if (validActions[i] > 0):
+                        validActionsList.append(i)
+            return random.choice(validActionsList[1:])
+        return 0
     
 class A2Cagent(Agent):
         
@@ -46,7 +47,6 @@ class A2Cagent(Agent):
         log_softmax_action = self.actor_network.get_qvalues_from_state(observation)
         softmax_action = torch.exp(log_softmax_action)
         qvalues = softmax_action.data.cpu().numpy()
-        print(validActions)
         action = self.actor_network.sample_actions(qvalues, np.array([validActions]))[0]
         return action
 
@@ -67,7 +67,7 @@ class A2Cagent(Agent):
         cur_replay["done"] = done
         cur_replay["final_reward"] = 0
         if not done:
-            obs_main = Variable(torch.Tensor([self.createStateObservation(n_obs)["main"]]))
+            obs_main = Variable(torch.Tensor([utils.createStateObservation(n_obs)["main"]]))
             cur_replay["final_reward"] = self.value_network(obs_main).cpu().data.numpy()
     
     def getRecord(self):
