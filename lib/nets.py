@@ -101,23 +101,22 @@ class ActorNetwork(nn.Module):
 
     def get_qvalues_from_state(self, state):
         main, our_units, enemy_units, enemy_core, our_piles, our_hand = utils.parse_state(state)
-        main = np.array([main])
-        enemy_units = np.array([enemy_units])
-        enemy_core = np.array([enemy_core])
-        our_piles = np.array([our_piles])
-        our_units = np.array([our_units])
-        our_hand = np.array([our_hand])
+        main = np.array(main)
+        enemy_units = np.array(enemy_units)
+        enemy_core = np.array(enemy_core)
+        our_piles = np.array(our_piles)
+        our_units = np.array(our_units)
+        our_hand = np.array(our_hand)
         return self.forward(main, our_units, enemy_units, enemy_core, our_piles, our_hand)
 
     def forward(self, main, our_units, enemy_units, enemy_core, our_piles, our_hand):
-
         qvalues = self.compute_qvalue(
-            torch.from_numpy(main),
-            torch.from_numpy(our_units),
-            torch.from_numpy(enemy_units),
-            torch.from_numpy(enemy_core),
-            torch.from_numpy(our_piles),
-            torch.from_numpy(our_hand)
+            torch.from_numpy(main).float(),
+            torch.from_numpy(our_units).float(),
+            torch.from_numpy(enemy_units).float(),
+            torch.from_numpy(enemy_core).float(),
+            torch.from_numpy(our_piles).float(),
+            torch.from_numpy(our_hand).float()
         )
 
         return qvalues
@@ -160,7 +159,6 @@ class ActorNetwork(nn.Module):
 
         move_card_qvalue = self.move_card_qvalues(field_vec + pile_vec).view(-1)
         move_card_qvalue = move_card_qvalue.view(batch_size, len(move_card_qvalue) // batch_size)
-        #print(move_card_qvalue.shape[1])
 
         return torch.cat((skip_qvalue, 
                           attack_core_qvalue, 

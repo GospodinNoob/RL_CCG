@@ -39,3 +39,7 @@ class Trainer():
             
             observation = n_observation
             
+    def train(self):
+        for i in self.agents:
+            i.train()
+            

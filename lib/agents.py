@@ -12,6 +12,9 @@ import utils
 class Agent():
     replay = []
     
+    def _init__(self, turn):
+        self.turn = turn
+    
     def getAction(self, observation, validActions, validEnvActions):
         pass
     
@@ -22,6 +25,10 @@ class Agent():
         pass
     
 class ARagent(Agent):
+    
+    def __init__(self, turn):
+        self.turn = turn
+        
     def getAction(self, observation, validActions, validEnvActions):
         if len(validEnvActions) > 1:
             validActionsList = []
@@ -33,8 +40,9 @@ class ARagent(Agent):
     
 class A2Cagent(Agent):
         
-    def __init__(self, actorNetwork, valueNetwork, n_actions=71, VEC_SIZE=100):
+    def __init__(self, actorNetwork, valueNetwork, turn, n_actions=71, VEC_SIZE=100):
         self.n_actions = n_actions
+        self.turn = turn
         self.actor_network = actorNetwork
         self.actor_network_optim = torch.optim.Adam(self.actor_network.parameters(), lr = 0.01)
         self.value_network = valueNetwork
@@ -44,7 +52,7 @@ class A2Cagent(Agent):
         
     def getAction(self, observation, validActions, validEnvActions):
         observation = utils.createStateObservation(observation)
-        log_softmax_action = self.actor_network.get_qvalues_from_state(observation)
+        log_softmax_action = self.actor_network.get_qvalues_from_state([observation])
         softmax_action = torch.exp(log_softmax_action)
         qvalues = softmax_action.data.cpu().numpy()
         action = self.actor_network.sample_actions(qvalues, np.array([validActions]))[0]
@@ -71,11 +79,11 @@ class A2Cagent(Agent):
             cur_replay["final_reward"] = self.value_network(obs_main).cpu().data.numpy()
     
     def getRecord(self):
-        replay_id = random.choice(self.replay.keys())
+        replay_id = random.choice(list(self.replay.keys()))
         cur_replay = self.replay[replay_id]
         return cur_replay["observations"], cur_replay["actions"], cur_replay["rewards"], cur_replay["final_reward"]
     
-    def discount_reward(r, gamma, final_r):
+    def discount_reward(self, r, gamma, final_r):
         discounted_r = np.zeros_like(r)
         running_add = final_r
         for t in reversed(range(0, len(r))):
@@ -85,52 +93,39 @@ class A2Cagent(Agent):
         
     def train(self):
         states, actions, rewards, final_r = self.getRecord()
-        return
-        actions_var = Variable(torch.Tensor(actions).view(-1, n_actions))
+        actions_var = Variable(torch.Tensor(actions).view(-1, self.n_actions))
         self.actor_network_optim.zero_grad()
-        main = []
-        our_units = []
-        enemy_units = []
-        enemy_core = []
         discount = 0.99
-        our_piles = []
-        our_hands = []
+        log_softmax_actions = self.actor_network.get_qvalues_from_state(states)
+        
+        main = []
         for st in states:
-            main.append(st[0])
-            our_units.append(st[1])
-            enemy_units.append(st[2])
-            enemy_core.append(st[3])
-            our_piles.append(st[4])
-            our_hands.append(st[5])
-        log_softmax_actions = actor_network(np.array(main), 
-                                            np.array(our_units), 
-                                            np.array(enemy_units), 
-                                            np.array(enemy_core), 
-                                            np.array(our_piles),
-                                            np.array(our_hands)
-                                           )
+            main.append(np.array(st["main"], dtype=np.float32)[None, None, :])
 
-        states_var = Variable(torch.Tensor(np.array(main)).view(-1, MAIN_SIZE))
+        states_var = Variable(torch.Tensor(np.array(main)))
         vs = self.value_network(states_var).detach()
 
         # calculate qs
-        qs = Variable(torch.Tensor(discount_reward(rewards, discount, final_r)))
+        qs = Variable(torch.Tensor(self.discount_reward(rewards, discount, final_r)))
 
         advantages = qs - vs
+        #print(log_softmax_actions.shape, actions_var.shape, advantages.shape)
         actor_network_loss = -torch.mean(torch.sum(log_softmax_actions * actions_var, 1) * advantages)
-        batch_loss_actor.append(actor_network_loss.detach().numpy())
+        #batch_loss_actor.append(actor_network_loss.detach().numpy())
         actor_network_loss.backward()
-        torch.nn.utils.clip_grad_norm(actor_network.parameters(), 0.5)
+        torch.nn.utils.clip_grad_norm(self.actor_network.parameters(), 0.5)
         self.actor_network_optim.step()
 
         # train value network
         self.value_network_optim.zero_grad()
         target_values = qs
-        values = value_network(states_var)
+        values = self.value_network(states_var)
         criterion = nn.MSELoss()
         value_network_loss = criterion(values, target_values)
-        batch_loss_value.append(value_network_loss.detach().numpy())
+        #batch_loss_value.append(value_network_loss.detach().numpy())
         value_network_loss.backward()
-        torch.nn.utils.clip_grad_norm(value_network.parameters(), 0.5)
+        torch.nn.utils.clip_grad_norm(self.value_network.parameters(), 0.5)
         self.value_network_optim.step()
+        
+        self.replay = dict()
     
