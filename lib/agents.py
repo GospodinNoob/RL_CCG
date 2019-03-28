@@ -22,13 +22,21 @@ class Agent():
         pass
     
     def train(self):
-        pass
+        return None
+    
+class SkipAgent(Agent):
+    
+    def __init__(self, turn):
+        self.turn = turn
+    
+    def getAction(self, observation, validActions, validEnvActions):
+        return 0
     
 class ARagent(Agent):
     
     def __init__(self, turn):
         self.turn = turn
-        
+    
     def getAction(self, observation, validActions, validEnvActions):
         if len(validEnvActions) > 1:
             validActionsList = []
@@ -39,6 +47,8 @@ class ARagent(Agent):
         return 0
     
 class A2Cagent(Agent):
+    
+    replay_capacity = 1
         
     def __init__(self, actorNetwork, valueNetwork, turn, n_actions=71, VEC_SIZE=100):
         self.n_actions = n_actions
@@ -60,6 +70,10 @@ class A2Cagent(Agent):
 
     def record(self, replay_id, obs, action, n_obs, reward, done):
         if replay_id not in self.replay:
+            
+            if(len(self.replay.keys()) >= self.replay_capacity):
+                self.replay.pop(random.choice(list(self.replay.keys())))
+            
             self.replay[replay_id] = dict()
             self.replay[replay_id]["observations"] = [obs]
             self.replay[replay_id]["actions"] = [action]
@@ -127,5 +141,5 @@ class A2Cagent(Agent):
         torch.nn.utils.clip_grad_norm(self.value_network.parameters(), 0.5)
         self.value_network_optim.step()
         
-        self.replay = dict()
+        return actor_network_loss.detach().numpy(), value_network_loss.detach().numpy()
     

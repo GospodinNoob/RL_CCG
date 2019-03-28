@@ -318,6 +318,7 @@ class Session:
     piles = []
     hands = []
     turn = 0
+    actions_num = []
     globalTurn = 0
     playersNum = 0
     observation = None
@@ -332,6 +333,7 @@ class Session:
     
     def init(self, decks):
         playersNum = len(decks)
+        self.actions_num = np.zeros(playersNum)
         self.piles = [decks[i].piles.copy() for i in range(playersNum)]
         self.battleGround = BattleGround([decks[i].core for i in range(playersNum)])
         self.hands = [Hand() for _ in range(playersNum)]
@@ -348,13 +350,13 @@ class Session:
         #attack core
         action -= 1
         if(action < 7):
-            env_action = ("attack", [self.turn, action], [1 - self.turn, 0])
+            env_action = ("attack", [self.turn, action + 1], [1 - self.turn, 0])
             return env_action
 
         #attack unit
         action -= 7
         if(action < 49):
-            env_action = ("attack", [self.turn, action // 7], [1 - self.turn, action % 7])
+            env_action = ("attack", [self.turn, action // 7 + 1], [1 - self.turn, action % 7 + 1])
             return env_action
 
         #play from pile
@@ -409,6 +411,7 @@ class Session:
         return self.envAction(self.envActionFromAction(action))
     
     def envAction(self, action):
+        self.actions_num[self.turn] += 1
         if(action[0] == "attack"):
             self.battleGround.Attack(action[1], action[2])
         elif(action[0] == "move"):
@@ -440,6 +443,13 @@ class Session:
         state["turn"] = self.turn
         state["end"] = (state["loser"] != -1) or (self.globalTurn > 60)
         return state
+    
+    def getGameStats(self):
+        looser = self.battleGround.isEnd()
+        return ([self.getHealthAdvantage(0), self.getHealthAdvantage(1)], 
+            self.actions_num, 
+            self.globalTurn,
+            [looser == 1, looser == 0])
     
     def getValidActions(self):
         curMana = self.battleGround.getCurMana(self.turn)
