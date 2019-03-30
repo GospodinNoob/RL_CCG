@@ -41,7 +41,7 @@ class Trainer():
             
             if (record):
                 if(turn == n_observation["turn"]):
-                    reward = curSession.getHealthAdvantage(turn) - oldAdv - 0.1
+                    reward = curSession.getHealthAdvantage(turn) - oldAdv# - 0.1
                     curAgent.record(replay_id,
                                     utils.createStateObservation(observation),
                                     [int(k == action) for k in range(self.n_actions)], 
@@ -53,7 +53,7 @@ class Trainer():
                     act_before_skips[turn] = action
 
                     if(obs_before_skips[1 - turn] != None):
-                        reward = curSession.getHealthAdvantage(1 - turn) - adv_before_skips[1 - turn] - 0.1
+                        reward = curSession.getHealthAdvantage(1 - turn) - adv_before_skips[1 - turn]# - 0.1
                         self.agents[1 - turn].record(replay_id,
                                         utils.createStateObservation(obs_before_skips[1 - turn]),
                                         [int(k == act_before_skips[1 - turn]) for k in range(self.n_actions)], 

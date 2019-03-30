@@ -52,17 +52,14 @@ class ARagent(Agent):
     
 class A2Cagent(Agent):
     
-    replay_capacity = 100
-        
-    def __init__(self, actorNetwork, valueNetwork, turn, n_actions=71, VEC_SIZE=100):
+    def __init__(self, actorNetwork, valueNetwork, turn, replay ,n_actions=71, VEC_SIZE=100):
         self.n_actions = n_actions
         self.turn = turn
         self.actor_network = actorNetwork
         self.actor_network_optim = torch.optim.Adam(self.actor_network.parameters(), lr = 0.01)
         self.value_network = valueNetwork
         self.value_network_optim = torch.optim.Adam(self.value_network.parameters(), lr=0.01)
-        
-        self.replay = dict()
+        self.replay = replay
         
     def getAction(self, observation, validActions, validEnvActions):
         observation = utils.createStateObservation(observation)
@@ -73,60 +70,22 @@ class A2Cagent(Agent):
         return action
 
     def record(self, replay_id, obs, action, n_obs, reward, done):
-        if replay_id not in self.replay:
-            
-            if(len(self.replay.keys()) >= self.replay_capacity):
-                self.replay.pop(random.choice(list(self.replay.keys())))
-            
-            self.replay[replay_id] = dict()
-            self.replay[replay_id]["observations"] = []
-            self.replay[replay_id]["actions"] = []
-            self.replay[replay_id]["n_observations"] = []
-            self.replay[replay_id]["rewards"] = []
-            
-        cur_replay = self.replay[replay_id]
-        cur_replay["observations"].append(obs)
-        cur_replay["actions"].append(action)
-        cur_replay["n_observations"].append(n_obs)
-        cur_replay["rewards"].append(reward)
-            
-        cur_replay["done"] = done
-        cur_replay["final_reward"] = 0
+        final_r = 0
         if not done:
             obs_main = Variable(torch.Tensor([utils.createStateObservation(n_obs)["main"]]))
-            cur_replay["final_reward"] = self.value_network(obs_main).cpu().data.numpy()
+            final_r = self.value_network(obs_main).cpu().data.numpy()
+        self.replay.record(obs, action, n_obs, reward, final_r)
     
     def getRecord(self, records_num=10):
-        records = list(self.replay.items())
-        replays = random.sample(self.replay.items(), min(len(records), records_num))
-        obs = []
-        actions = []
-        rewards = []
-        for i in replays:
-            obs.extend(i[1]["observations"])
-            actions.extend(i[1]["actions"])
-            rewards.extend(i[1]["rewards"])
-        
-        return obs, actions, rewards
+        return self.replay.sample(records_num)
     
     def endRecord(self, replay_id):
-        if(replay_id not in list(self.replay.keys())):
-            return
-        cur_replay = self.replay[replay_id]
-        cur_replay["rewards"] = self.discount_reward(cur_replay["rewards"], 0.99, cur_replay["final_reward"])
-    
-    def discount_reward(self, r, gamma, final_r):
-        discounted_r = np.zeros_like(r)
-        for t in reversed(range(0, len(r))):
-            running_add = final_r * gamma + r[t]
-            discounted_r[t] = final_r
-        return discounted_r
+        self.replay.endRecord()
         
     def train(self):
-        states, actions, rewards = self.getRecord(5)
+        states, actions, rewards, indices, weights = self.getRecord(300)
         actions_var = Variable(torch.Tensor(actions).view(-1, self.n_actions))
         self.actor_network_optim.zero_grad()
-        discount = 0.99
         log_softmax_actions = self.actor_network.get_qvalues_from_state(states)
         
         main = []
@@ -141,9 +100,13 @@ class A2Cagent(Agent):
 
         advantages = qs - vs
         #print(log_softmax_actions.shape, actions_var.shape, advantages.shape)
-        actor_network_loss = -torch.mean(torch.sum(log_softmax_actions * actions_var, 1) * advantages)
+        weights = Variable(torch.FloatTensor(weights))
+        actor_network_loss = (torch.sum(log_softmax_actions * actions_var, 1) * advantages).pow(2) * weights
+        prios = actor_network_loss + 1e-5
+        actor_network_loss = torch.mean(actor_network_loss)
         #batch_loss_actor.append(actor_network_loss.detach().numpy())
         actor_network_loss.backward()
+        self.replay.update_priorities(indices, prios.data.cpu().numpy())
         #torch.nn.utils.clip_grad_norm(self.actor_network.parameters(), 0.5)
         self.actor_network_optim.step()
 
