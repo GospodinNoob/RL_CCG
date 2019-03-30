@@ -62,6 +62,9 @@ class Trainer():
                                         n_observation["end"])
             
             observation = n_observation
+            
+        for i in self.agents:
+            i.endRecord(replay_id)
         
         result = curSession.getGameStats()
         

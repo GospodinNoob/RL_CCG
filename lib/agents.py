@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import ccg
 import utils
+from IPython.display import clear_output
 
 class Agent():
     replay = []
@@ -19,6 +20,9 @@ class Agent():
         pass
     
     def record(self, replay_id, obs, action, n_obs, reward, done):
+        pass
+    
+    def endRecord(self, replay_id):
         pass
     
     def train(self):
@@ -48,7 +52,7 @@ class ARagent(Agent):
     
 class A2Cagent(Agent):
     
-    replay_capacity = 1
+    replay_capacity = 100
         
     def __init__(self, actorNetwork, valueNetwork, turn, n_actions=71, VEC_SIZE=100):
         self.n_actions = n_actions
@@ -75,10 +79,10 @@ class A2Cagent(Agent):
                 self.replay.pop(random.choice(list(self.replay.keys())))
             
             self.replay[replay_id] = dict()
-            self.replay[replay_id]["observations"] = [obs]
-            self.replay[replay_id]["actions"] = [action]
-            self.replay[replay_id]["n_observations"] = [n_obs]
-            self.replay[replay_id]["rewards"] = [reward]
+            self.replay[replay_id]["observations"] = []
+            self.replay[replay_id]["actions"] = []
+            self.replay[replay_id]["n_observations"] = []
+            self.replay[replay_id]["rewards"] = []
             
         cur_replay = self.replay[replay_id]
         cur_replay["observations"].append(obs)
@@ -92,21 +96,34 @@ class A2Cagent(Agent):
             obs_main = Variable(torch.Tensor([utils.createStateObservation(n_obs)["main"]]))
             cur_replay["final_reward"] = self.value_network(obs_main).cpu().data.numpy()
     
-    def getRecord(self):
-        replay_id = random.choice(list(self.replay.keys()))
+    def getRecord(self, records_num=10):
+        records = list(self.replay.items())
+        replays = random.sample(self.replay.items(), min(len(records), records_num))
+        obs = []
+        actions = []
+        rewards = []
+        for i in replays:
+            obs.extend(i[1]["observations"])
+            actions.extend(i[1]["actions"])
+            rewards.extend(i[1]["rewards"])
+        
+        return obs, actions, rewards
+    
+    def endRecord(self, replay_id):
+        if(replay_id not in list(self.replay.keys())):
+            return
         cur_replay = self.replay[replay_id]
-        return cur_replay["observations"], cur_replay["actions"], cur_replay["rewards"], cur_replay["final_reward"]
+        cur_replay["rewards"] = self.discount_reward(cur_replay["rewards"], 0.99, cur_replay["final_reward"])
     
     def discount_reward(self, r, gamma, final_r):
         discounted_r = np.zeros_like(r)
-        running_add = final_r
         for t in reversed(range(0, len(r))):
-            running_add = running_add * gamma + r[t]
-            discounted_r[t] = running_add
+            running_add = final_r * gamma + r[t]
+            discounted_r[t] = final_r
         return discounted_r
         
     def train(self):
-        states, actions, rewards, final_r = self.getRecord()
+        states, actions, rewards = self.getRecord(5)
         actions_var = Variable(torch.Tensor(actions).view(-1, self.n_actions))
         self.actor_network_optim.zero_grad()
         discount = 0.99
@@ -120,14 +137,14 @@ class A2Cagent(Agent):
         vs = self.value_network(states_var).detach()
 
         # calculate qs
-        qs = Variable(torch.Tensor(self.discount_reward(rewards, discount, final_r)))
+        qs = Variable(torch.Tensor(rewards))
 
         advantages = qs - vs
         #print(log_softmax_actions.shape, actions_var.shape, advantages.shape)
         actor_network_loss = -torch.mean(torch.sum(log_softmax_actions * actions_var, 1) * advantages)
         #batch_loss_actor.append(actor_network_loss.detach().numpy())
         actor_network_loss.backward()
-        torch.nn.utils.clip_grad_norm(self.actor_network.parameters(), 0.5)
+        #torch.nn.utils.clip_grad_norm(self.actor_network.parameters(), 0.5)
         self.actor_network_optim.step()
 
         # train value network
