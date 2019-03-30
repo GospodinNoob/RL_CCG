@@ -16,7 +16,7 @@ class Agent():
     def _init__(self, turn):
         self.turn = turn
     
-    def getAction(self, observation, validActions, validEnvActions):
+    def getAction(self, observation, validActions, validEnvActions, evaluate = False):
         pass
     
     def record(self, replay_id, obs, action, n_obs, reward, done):
@@ -41,7 +41,7 @@ class ARagent(Agent):
     def __init__(self, turn):
         self.turn = turn
     
-    def getAction(self, observation, validActions, validEnvActions):
+    def getAction(self, observation, validActions, validEnvActions, evaluate = False):
         if len(validEnvActions) > 1:
             validActionsList = []
             for i in range(len(validActions)):
@@ -61,12 +61,12 @@ class A2Cagent(Agent):
         self.value_network_optim = torch.optim.Adam(self.value_network.parameters(), lr=0.01)
         self.replay = replay
         
-    def getAction(self, observation, validActions, validEnvActions):
+    def getAction(self, observation, validActions, validEnvActions, evaluate = False):
         observation = utils.createStateObservation(observation)
         log_softmax_action = self.actor_network.get_qvalues_from_state([observation])
         softmax_action = torch.exp(log_softmax_action)
         qvalues = softmax_action.data.cpu().numpy()
-        action = self.actor_network.sample_actions(qvalues, np.array([validActions]))[0]
+        action = self.actor_network.sample_actions(qvalues, np.array([validActions]), evaluate = evaluate)[0]
         return action
 
     def record(self, replay_id, obs, action, n_obs, reward, done):
@@ -107,7 +107,7 @@ class A2Cagent(Agent):
         #batch_loss_actor.append(actor_network_loss.detach().numpy())
         actor_network_loss.backward()
         self.replay.update_priorities(indices, prios.data.cpu().numpy())
-        #torch.nn.utils.clip_grad_norm(self.actor_network.parameters(), 0.5)
+        torch.nn.utils.clip_grad_norm(self.actor_network.parameters(), 0.5)
         self.actor_network_optim.step()
 
         # train value network

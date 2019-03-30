@@ -168,7 +168,7 @@ class ActorNetwork(nn.Module):
                           move_card_qvalue
                          ), dim=1)
 
-    def sample_actions(self, qvalues, valid_actions):
+    def sample_actions(self, qvalues, valid_actions, evaluate = False):
         epsilon = self.epsilon
         batch_size, n_actions = qvalues.shape
 
@@ -177,7 +177,9 @@ class ActorNetwork(nn.Module):
         valid_actions = [va / np.sum(va) for va in valid_actions]
         random_actions = [np.random.choice(n_actions, size=batch_size, p=va)[0] for va in valid_actions]
         best_actions = qvalues.argmax(axis=-1)
-
-        should_explore = np.random.choice([0, 1], batch_size, p = [1-epsilon, epsilon])
+        if (not evaluate):
+            should_explore = np.random.choice([0, 1], batch_size, p = [1-epsilon, epsilon])
+        else:
+            should_explore = np.zeros(batch_size)
         return np.where(should_explore, random_actions, best_actions)
 

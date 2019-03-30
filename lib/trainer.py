@@ -12,10 +12,10 @@ class Trainer():
         self.session = session
         self.agents = agents
         
-    def playGame(self, session = None, record = False, replay_id = 0):
-        return self.playSteps(-1, session, record = record, replay_id = replay_id)
+    def playGame(self, session = None, record = False, replay_id = 0, evaluate = True):
+        return self.playSteps(-1, session, record = record, replay_id = replay_id, evaluate = evaluate)
         
-    def playSteps(self, n_steps, session = None, record = True, replay_id = 0):
+    def playSteps(self, n_steps, session = None, record = True, replay_id = 0, evaluate = False):
         curSession = self.session
         if (session != None):
             curSession = session
@@ -36,7 +36,7 @@ class Trainer():
             adv_before_skips[turn] = oldAdv
             
             n_steps -= 1
-            action = curAgent.getAction(observation, validActions, validActionsEnv)
+            action = curAgent.getAction(observation, validActions, validActionsEnv, evaluate = evaluate)
             n_observation, validActions, validActionsEnv = curSession.action(action)
             
             if (record):
@@ -62,9 +62,9 @@ class Trainer():
                                         n_observation["end"])
             
             observation = n_observation
-            
-        for i in self.agents:
-            i.endRecord(replay_id)
+        if (record):
+            for i in self.agents:
+                i.endRecord(replay_id)
         
         result = curSession.getGameStats()
         
