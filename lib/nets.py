@@ -30,7 +30,7 @@ class ValueNetwork(nn.Module):
             return reward
 
 class ActorNetwork(nn.Module):
-    def __init__(self, state, VEC_SIZE = 100, epsilon = 0.5):
+    def __init__(self, state, VEC_SIZE = 100):
         super().__init__()
         
         self.CARD_SIZE = len(utils.observationMinion(ccg.Minion().getCurState()))
@@ -41,8 +41,6 @@ class ActorNetwork(nn.Module):
         self.HAND_SIZE = len(state["hands"][0])
         self.VEC_SIZE = VEC_SIZE
         
-        self.epsilon = epsilon
-
         self.field2vec = nn.Sequential(
             nn.Linear(self.MAIN_SIZE, 512,), 
             nn.ELU(), 
@@ -168,8 +166,7 @@ class ActorNetwork(nn.Module):
                           move_card_qvalue
                          ), dim=1)
 
-    def sample_actions(self, qvalues, valid_actions, evaluate = False):
-        epsilon = self.epsilon
+    def sample_actions(self, qvalues, valid_actions, evaluate = False, epsilon = 0.5):
         batch_size, n_actions = qvalues.shape
 
         qvalues[np.logical_not(valid_actions)] = -2**32

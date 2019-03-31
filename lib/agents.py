@@ -52,9 +52,10 @@ class ARagent(Agent):
     
 class A2Cagent(Agent):
     
-    def __init__(self, actorNetwork, valueNetwork, turn, replay ,n_actions=71, VEC_SIZE=100):
+    def __init__(self, actorNetwork, valueNetwork, turn, replay ,n_actions=71, VEC_SIZE=100, epsilon = 0.2):
         self.n_actions = n_actions
         self.turn = turn
+        self.epsilon = epsilon
         self.actor_network = actorNetwork
         self.actor_network_optim = torch.optim.Adam(self.actor_network.parameters(), lr = 0.01)
         self.value_network = valueNetwork
@@ -64,9 +65,10 @@ class A2Cagent(Agent):
     def getAction(self, observation, validActions, validEnvActions, evaluate = False):
         observation = utils.createStateObservation(observation)
         log_softmax_action = self.actor_network.get_qvalues_from_state([observation])
-        softmax_action = torch.exp(log_softmax_action)
-        qvalues = softmax_action.data.cpu().numpy()
-        action = self.actor_network.sample_actions(qvalues, np.array([validActions]), evaluate = evaluate)[0]
+        #softmax_action = torch.exp(log_softmax_action)
+        #qvalues = softmax_action.data.cpu().numpy()
+        qvalues = log_softmax_action.data.cpu().numpy()
+        action = self.actor_network.sample_actions(qvalues, np.array([validActions]), evaluate = evaluate, epsilon = self.epsilon)[0]
         return action
 
     def record(self, replay_id, obs, action, n_obs, reward, done):
@@ -83,7 +85,8 @@ class A2Cagent(Agent):
         self.replay.endRecord()
         
     def train(self):
-        states, actions, rewards, indices, weights = self.getRecord(300)
+        self.epsilon *= 0.999
+        states, actions, rewards, indices, weights = self.getRecord(100)
         actions_var = Variable(torch.Tensor(actions).view(-1, self.n_actions))
         self.actor_network_optim.zero_grad()
         log_softmax_actions = self.actor_network.get_qvalues_from_state(states)
@@ -101,9 +104,10 @@ class A2Cagent(Agent):
         advantages = qs - vs
         #print(log_softmax_actions.shape, actions_var.shape, advantages.shape)
         weights = Variable(torch.FloatTensor(weights))
-        actor_network_loss = (torch.sum(log_softmax_actions * actions_var, 1) * advantages).pow(2) * weights
-        prios = actor_network_loss + 1e-5
-        actor_network_loss = torch.mean(actor_network_loss)
+        actor_network_loss = torch.sum(log_softmax_actions*actions_var,1) * advantages * weights
+        #actor_network_loss = (torch.sum(log_softmax_actions * actions_var, 1) * advantages).pow(2) * weights
+        prios = actor_network_loss.pow(2) + 1e-5
+        actor_network_loss = -torch.mean(actor_network_loss)
         #batch_loss_actor.append(actor_network_loss.detach().numpy())
         actor_network_loss.backward()
         self.replay.update_priorities(indices, prios.data.cpu().numpy())

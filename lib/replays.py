@@ -69,7 +69,7 @@ class FlatReplay(Replay):
         return obs, actions, rewards
 
 class PrioritizedReplay(Replay):
-    def __init__(self, capacity=100000, prob_alpha=0.6, gamma=0.99):
+    def __init__(self, capacity=10000, prob_alpha=0.6, gamma=0.99):
         self.prob_alpha = prob_alpha
         self.gamma = gamma
         self.capacity = capacity
@@ -81,18 +81,18 @@ class PrioritizedReplay(Replay):
         if self.cur_replay == None:
             return
         self.cur_replay["rewards"] = self.discount_reward(self.cur_replay["rewards"], self.gamma, self.cur_replay["final_reward"])
-        for obs, act, rew in zip(self.cur_replay["observations"], self.cur_replay["actions"], self.cur_replay["rewards"]):
-            self.push(obs, act, rew)
+        
+        self.push(self.cur_replay)
         
         self.cur_replay = None
     
-    def push(self, obs, action, reward):
+    def push(self, trajectory):
         max_prio = self.priorities.max() if self.buffer else 1.0
         
         if len(self.buffer) < self.capacity:
-            self.buffer.append((obs, action, reward))
+            self.buffer.append(trajectory)
         else:
-            self.buffer[self.pos] = (obs, action, reward)
+            self.buffer[self.pos] = trajectory
         
         self.priorities[self.pos] = max_prio
         self.pos = (self.pos + 1) % self.capacity
@@ -118,12 +118,18 @@ class PrioritizedReplay(Replay):
         actions = []
         rewards = []
         
-        for i in samples:
-            observations.append(i[0])
-            actions.append(i[1])
-            rewards.append(i[2])
+        flatten_weights = []
+        flatten_ids = []
         
-        return observations, actions, rewards, indices, weights
+        for i , trajectory in enumerate(samples):
+            l = len(trajectory["observations"])
+            flatten_weights.extend([weights[i]] * l)
+            flatten_ids.extend([indices[i]] * l)
+            observations.extend(trajectory["observations"])
+            actions.extend(trajectory["actions"])
+            rewards.extend(trajectory["rewards"])
+        
+        return observations, actions, rewards, flatten_ids, flatten_weights
     
     def update_priorities(self, batch_indices, batch_priorities):
         for idx, prio in zip(batch_indices, batch_priorities):
