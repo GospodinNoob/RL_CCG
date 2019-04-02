@@ -65,9 +65,11 @@ class A2Cagent(Agent):
     def getAction(self, observation, validActions, validEnvActions, evaluate = False):
         observation = utils.createStateObservation(observation)
         log_softmax_action = self.actor_network.get_qvalues_from_state([observation])
-        #softmax_action = torch.exp(log_softmax_action)
-        #qvalues = softmax_action.data.cpu().numpy()
-        qvalues = log_softmax_action.data.cpu().numpy()
+        #softmax_action = nn.LogSoftmax(log_softmax_action)
+        m = nn.LogSoftmax()
+        softmax_action = m(log_softmax_action)
+        qvalues = softmax_action.data.cpu().numpy()
+        #qvalues = log_softmax_action.data.cpu().numpy()
         action = self.actor_network.sample_actions(qvalues, np.array([validActions]), evaluate = evaluate, epsilon = self.epsilon)[0]
         return action
 
@@ -111,11 +113,12 @@ class A2Cagent(Agent):
         qs = Variable(torch.Tensor(rewards))
 
         advantages = qs - vs
-        #print(log_softmax_actions.shape, actions_var.shape, advantages.shape)
+        #print(log_softmax_actions.shape, actions_var.shape, advantages.shape, len(weights))
         weights = Variable(torch.FloatTensor(weights))
-        actor_network_loss = torch.sum(log_softmax_actions*actions_var,1) * advantages * weights
+        actor_network_loss = torch.sum(log_softmax_actions * actions_var, 1) * advantages * weights * 0.001
         #actor_network_loss = (torch.sum(log_softmax_actions * actions_var, 1) * advantages).pow(2) * weights
-        prios = actor_network_loss.pow(2) + 1e-5
+        prios = torch.abs(advantages) + 1e-5
+        #prios = actor_network_loss.pow(2) + 1e-5
         actor_network_loss = -torch.mean(actor_network_loss)
         #batch_loss_actor.append(actor_network_loss.detach().numpy())
         actor_network_loss.backward()
@@ -129,12 +132,13 @@ class A2Cagent(Agent):
         values = self.value_network(states_var)
         criterion = nn.MSELoss()
         value_network_loss = criterion(values, target_values)
+        #value_network_loss = F.smooth_l1_loss(values, target_values)
         #batch_loss_value.append(value_network_loss.detach().numpy())
         value_network_loss.backward()
         torch.nn.utils.clip_grad_norm(self.value_network.parameters(), 0.5)
         self.value_network_optim.step()
         
-        self.softUpdate(self.actor_network, old_actor, soft_tau = 0.9)
+        #self.softUpdate(self.actor_network, old_actor, soft_tau = 0.9)
         #self.softUpdate(self.value_network, old_value, soft_tau = 0.9)
         
         return actor_network_loss.detach().numpy(), value_network_loss.detach().numpy()
