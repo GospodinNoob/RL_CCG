@@ -84,12 +84,21 @@ class A2Cagent(Agent):
     def endRecord(self, replay_id):
         self.replay.endRecord()
         
+    def softUpdate(self, target, source, soft_tau = 0.5):
+        for target_param, param in zip(target.parameters(), source.parameters()):
+            target_param.data.copy_(
+                target_param.data * (1.0 - soft_tau) + param.data * soft_tau
+            )
+        
     def train(self):
         self.epsilon *= 0.999
-        states, actions, rewards, indices, weights = self.getRecord(100)
+        states, actions, rewards, indices, weights = self.getRecord(200)
         actions_var = Variable(torch.Tensor(actions).view(-1, self.n_actions))
         self.actor_network_optim.zero_grad()
         log_softmax_actions = self.actor_network.get_qvalues_from_state(states)
+        
+        old_actor = copy.deepcopy(self.actor_network)
+        old_value = copy.deepcopy(self.value_network)
         
         main = []
         for st in states:
@@ -124,6 +133,9 @@ class A2Cagent(Agent):
         value_network_loss.backward()
         torch.nn.utils.clip_grad_norm(self.value_network.parameters(), 0.5)
         self.value_network_optim.step()
+        
+        self.softUpdate(self.actor_network, old_actor, soft_tau = 0.9)
+        #self.softUpdate(self.value_network, old_value, soft_tau = 0.9)
         
         return actor_network_loss.detach().numpy(), value_network_loss.detach().numpy()
     
