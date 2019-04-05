@@ -5,24 +5,27 @@ class BaseInfo:
     owner = -1
     keyName = 0
 
+
 class Card(BaseInfo):
     cost = 0
-    
-    def __init__(self):
-        pass
     
     def __init__(self, objList=None):
         pass
     
     def setOwner(self, owner):
         self.owner = owner
-    
+
+
 class Unit:
-    wasActive = True
     maxHealth = 0
-    curHealth = 0
     armour = 0
     damage = 0
+    priority = 0
+    chrage = 0
+    baseActivations = 1
+    
+    curHealth = 0
+    activations = 0
     
     def dealDamageFrom(self, attacker):
         self.curHealth -= attacker.damage - self.armour
@@ -32,14 +35,15 @@ class Unit:
         return self.curHealth > 0
     
     def activate(self):
-        self.wasActive = True
+        self.activations -= 1
         
     def isActive(self):
-        return not self.wasActive
+        return self.activations > 0
     
     def newTurn(self):
-        self.wasActive = False
-    
+        self.activations = self.baseActivations
+
+
 class Core(Unit):
     maxMana = 0
     curMana = 0
@@ -56,7 +60,7 @@ class Core(Unit):
         self.curHealth = self.maxHealth
         self.maxMana = 1
         self.curMana = self.maxMana  
-        self.active = True
+        self.activations = 0
         
     def spendMana(self, cost):
         self.curMana -= cost
@@ -66,6 +70,7 @@ class Core(Unit):
         self.maxMana += 1
         self.maxMana %= 10
         self.curMana = self.maxMana 
+        self.activations = 0
         
 
     
@@ -74,25 +79,25 @@ class Minion(Card, Unit):
             
     def getCurState(self, playerNum = -1, visible = False):
         if(self.owner == playerNum) or visible:
-            return (self.cost, self.damage, self.armour, self.curHealth, self.maxHealth, self.wasActive)
+            return (self.cost, self.damage, self.armour, self.curHealth, self.maxHealth, self.activations)
         return None
     
     def __init__(self, objList = None):
         if(objList == None):
-            self.active = True
             return
         self.damage, self.armour, self.maxHealth, self.cost  = objList[2:]
         self.keyName = objList[0]
         self.curHealth = self.maxHealth
-        self.active = False
-        
+        self.activations = self.baseActivations
+
+
 class Hand(BaseInfo):
     cards = []
     maxSize = 6
     
     def __init__(self):
         self.cards = []
-        maxSize = 6
+        self.maxSize = 6
         
     def addCard(self, card):
         self.cards.append(card)
@@ -324,6 +329,9 @@ class Session:
     observation = None
     validActionsEnv = None
     validActions = None
+
+    action_logs = []
+    process_logs = []
     
     decks = None
     
@@ -389,6 +397,8 @@ class Session:
         return self.battleGround.getHealthAdvantage(playerId)
         
     def reset(self):
+        self.action_logs = []
+        self.process_logs = []
         self.init(copy.deepcopy(self.decks))
         return self.processNewStateInfo()
     
@@ -408,9 +418,18 @@ class Session:
         return self.observation, self.validActions, self.validActionsEnv
     
     def action(self, action):
-        return self.envAction(self.envActionFromAction(action))
+        envAction = self.envActionFromAction(action)
+        self.action_logs.append((action, envAction))
+        if (envAction not in self.validActionsEnv):
+            print("Not a valid action")
+            print(action, envAction)
+            print(self.validActions)
+            print(self.validActionsEnv)
+            return
+        return self.envAction(envAction)
     
     def envAction(self, action):
+        
         self.actions_num[self.turn] += 1
         if(action[0] == "attack"):
             self.battleGround.Attack(action[1], action[2])
@@ -428,7 +447,13 @@ class Session:
             if(self.turn == 0):
                 self.globalTurn += 1
             self.battleGround.newTurn(self.turn)
-        return self.processNewStateInfo()
+        precessed_info = self.processNewStateInfo()
+        self.process_logs.append(precessed_info)
+        return precessed_info
+
+    def playLogs(self, logs):
+        for action in logs:
+            self.envAction(action)
     
     def processObservation(self):
         state = dict()

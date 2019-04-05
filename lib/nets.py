@@ -169,7 +169,7 @@ class ActorNetwork(nn.Module):
     def sample_actions(self, qvalues, valid_actions, evaluate = False, epsilon = 0.5):
         batch_size, n_actions = qvalues.shape
 
-        qvalues[np.logical_not(valid_actions)] = -2**32
+        qvalues[np.logical_not(valid_actions)] = -np.inf
         valid_actions = valid_actions.astype(np.int)
         valid_actions = [va / np.sum(va) for va in valid_actions]
         random_actions = [np.random.choice(n_actions, size=batch_size, p=va)[0] for va in valid_actions]
@@ -178,5 +178,15 @@ class ActorNetwork(nn.Module):
             should_explore = np.random.choice([0, 1], batch_size, p = [1-epsilon, epsilon])
         else:
             should_explore = np.zeros(batch_size)
-        return np.where(should_explore, random_actions, best_actions)
+        
+        actions = np.where(should_explore, random_actions, best_actions)
+        for i in range(len(actions)):
+            if(valid_actions[i][actions[i]] == 0):
+                print("WHAT THE FUCK")
+                print(valid_actions)
+                print(actions)
+                print(qvalues)
+                print(random_actions)
+                print(best_actions)
+        return actions
 

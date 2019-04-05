@@ -12,10 +12,10 @@ class Trainer():
         self.session = session
         self.agents = agents
         
-    def playGame(self, session = None, record = False, replay_id = 0, evaluate = True):
-        return self.playSteps(-1, session, record = record, replay_id = replay_id, evaluate = evaluate)
+    def playGame(self, session = None, record = False, replay_id = 0, evaluate = True, resetAfterGame = True):
+        return self.playSteps(-1, session, record = record, replay_id = replay_id, evaluate = evaluate, resetAfterGame = resetAfterGame)
         
-    def playSteps(self, n_steps, session = None, record = True, replay_id = 0, evaluate = False):
+    def playSteps(self, n_steps, session = None, record = True, replay_id = 0, evaluate = False, resetAfterGame = True):
         curSession = self.session
         if (session != None):
             curSession = session
@@ -68,7 +68,7 @@ class Trainer():
         
         result = curSession.getGameStats()
         
-        if(observation["end"]):
+        if(observation["end"] and resetAfterGame):
             curSession.reset()
         
         return result
