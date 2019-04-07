@@ -14,6 +14,9 @@ class Card(BaseInfo):
     
     def setOwner(self, owner):
         self.owner = owner
+        
+    def played(self):
+        pass
 
 
 class Unit:
@@ -21,7 +24,7 @@ class Unit:
     armour = 0
     damage = 0
     priority = 0
-    chrage = 0
+    charge = 0
     baseActivations = 1
     
     curHealth = 0
@@ -79,16 +82,32 @@ class Minion(Card, Unit):
             
     def getCurState(self, playerNum = -1, visible = False):
         if(self.owner == playerNum) or visible:
-            return (self.cost, self.damage, self.armour, self.curHealth, self.maxHealth, self.activations)
+            return (self.cost, 
+                    self.damage, 
+                    self.armour, 
+                    self.curHealth, 
+                    self.maxHealth, 
+                    self.activations, 
+                    self.priority,
+                    self.charge,
+                    self.baseActivations
+                   )
         return None
     
     def __init__(self, objList = None):
         if(objList == None):
             return
-        self.damage, self.armour, self.maxHealth, self.cost  = objList[2:]
+        self.damage, self.armour, self.maxHealth, self.cost, self.priority, self.charge, self.baseActivations  = objList[2:]
         self.keyName = objList[0]
         self.curHealth = self.maxHealth
-        self.activations = self.baseActivations
+        self.activations = 0
+        if(self.charge > 0):
+            self.activations = self.baseActivations
+        
+    def played(self):
+        self.activations = 0
+        if(self.charge > 0):
+            self.activations = self.baseActivations
 
 
 class Hand(BaseInfo):
@@ -217,6 +236,7 @@ class Table(BaseInfo):
             return
         self.tables[playerNum][0].spendMana(card.cost)
         self.tables[playerNum].append(card)
+        card.played()
     
     def getCurMana(self, playerNum):
         return self.tables[playerNum][0].curMana
@@ -243,8 +263,12 @@ class Table(BaseInfo):
             if self.tables[playerNum][unit].isActive():
                 for i in range(len(self.tables)):
                     if (i != playerNum):
+                        maxPriority = -np.inf
+                        for u in self.tables[i]:
+                            maxPriority = max(maxPriority, u.priority)
                         for j in range(len(self.tables[i])):
-                            validActions.append(("attack", [playerNum, unit], [i, j]))
+                            if(self.tables[i][j].priority == maxPriority):
+                                validActions.append(("attack", [playerNum, unit], [i, j]))
         return validActions
 
 class Grave:

@@ -38,7 +38,7 @@ class ActorNetwork(nn.Module):
         self.MAIN_SIZE = len(state["main"])
         self.CORE_SIZE = len(state["cores"][0])
         self.PILE_SIZE = len(state["piles"][0][0])
-        self.HAND_SIZE = len(state["hands"][0])
+        self.HAND_SIZE = len(state["hands"][0][0])
         self.VEC_SIZE = VEC_SIZE
         
         self.field2vec = nn.Sequential(
@@ -80,21 +80,29 @@ class ActorNetwork(nn.Module):
         self.attack_core_qvalues = nn.Sequential(
             nn.Linear(VEC_SIZE, 512,),  #[field, attacker_card, core]
             nn.ELU(), 
+            nn.Linear(512, 512,),
+            nn.ELU(),
             nn.Linear(512, 1))
 
         self.play_card_qvalues = nn.Sequential(
             nn.Linear(VEC_SIZE, 512,),  #[field, pile]
             nn.ELU(), 
+            nn.Linear(512, 512,),
+            nn.ELU(),
             nn.Linear(512, 1))
 
         self.play_hand_card_qvalues = nn.Sequential(
             nn.Linear(VEC_SIZE, 512,),  #[field, hand]
             nn.ELU(), 
+            nn.Linear(512, 512,),
+            nn.ELU(),
             nn.Linear(512, 1))
 
         self.move_card_qvalues = nn.Sequential(
             nn.Linear(VEC_SIZE, 512,),  #[field, pile]
             nn.ELU(), 
+            nn.Linear(512, 512,),
+            nn.ELU(),
             nn.Linear(512, 1))
 
     def get_qvalues_from_state(self, state):

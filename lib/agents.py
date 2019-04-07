@@ -57,7 +57,8 @@ class A2Cagent(Agent):
         self.turn = turn
         self.epsilon = epsilon
         self.actor_network = actorNetwork
-        self.actor_network_optim = torch.optim.Adam(self.actor_network.parameters(), lr = 0.01)
+        #self.actor_network_optim = torch.optim.Adam(self.actor_network.parameters(), lr = 0.01)
+        self.actor_network_optim = torch.optim.RMSprop(self.actor_network.parameters(), lr = 0.01)
         self.value_network = valueNetwork
         self.value_network_optim = torch.optim.Adam(self.value_network.parameters(), lr=0.01)
         self.replay = replay
@@ -94,13 +95,11 @@ class A2Cagent(Agent):
         
     def train(self):
         self.epsilon *= 0.999
-        states, actions, rewards, indices, weights = self.getRecord(200)
+        self.epsilon = max(0.1, self.epsilon)
+        states, actions, rewards, indices, weights = self.getRecord(400)
         actions_var = Variable(torch.Tensor(actions).view(-1, self.n_actions))
         self.actor_network_optim.zero_grad()
         log_softmax_actions = self.actor_network.get_qvalues_from_state(states)
-        
-        old_actor = copy.deepcopy(self.actor_network)
-        old_value = copy.deepcopy(self.value_network)
         
         main = []
         for st in states:
@@ -115,7 +114,7 @@ class A2Cagent(Agent):
         advantages = qs - vs
         #print(log_softmax_actions.shape, actions_var.shape, advantages.shape, len(weights))
         weights = Variable(torch.FloatTensor(weights))
-        actor_network_loss = torch.sum(log_softmax_actions * actions_var, 1) * advantages * weights * 0.001
+        actor_network_loss = torch.sum(log_softmax_actions * actions_var, 1) * advantages * weights# * 0.0005
         #actor_network_loss = (torch.sum(log_softmax_actions * actions_var, 1) * advantages).pow(2) * weights
         prios = torch.abs(advantages) + 1e-5
         #prios = actor_network_loss.pow(2) + 1e-5
