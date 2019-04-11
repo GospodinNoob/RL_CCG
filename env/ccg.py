@@ -359,19 +359,27 @@ class Session:
     
     decks = None
     
-    def __init__(self, decks):
-        self.decks = copy.deepcopy(decks)
-        self.init(decks)
+    def __init__(self, cardsList, coreList, playersNum):
+        self.cardsList = copy.deepcopy(cardsList)
+        self.coreList = copy.deepcopy(coreList)
+        self.playersNum = playersNum
+        self.init()
     
-    def init(self, decks):
-        playersNum = len(decks)
-        self.actions_num = np.zeros(playersNum)
-        self.piles = [decks[i].piles.copy() for i in range(playersNum)]
-        self.battleGround = BattleGround([decks[i].core for i in range(playersNum)])
-        self.hands = [Hand() for _ in range(playersNum)]
+    def init(self):
+        cardsList = copy.deepcopy(self.cardsList)
+        coreList = copy.deepcopy(self.coreList)
+        
+        piles_player = [Pile(cardsList, 10) for _ in range(4)]
+        cores = np.random.choice(coreList, 2)
+        
+        piles = [copy.deepcopy(piles_player) for _ in range(self.playersNum)]
+        
+        self.actions_num = np.zeros(self.playersNum)
+        self.piles = [piles[i] for i in range(self.playersNum)]
+        self.battleGround = BattleGround([cores[i] for i in range(self.playersNum)])
+        self.hands = [Hand() for _ in range(self.playersNum)]
         self.turn = 0
         self.globalTurn = 0
-        self.playersNum = playersNum
         
     def envActionFromAction(self, action):
         #skip
@@ -423,7 +431,7 @@ class Session:
     def reset(self):
         self.action_logs = []
         self.process_logs = []
-        self.init(copy.deepcopy(self.decks))
+        self.init()
         return self.processNewStateInfo()
     
     def getNextState(self, action):
@@ -444,12 +452,6 @@ class Session:
     def action(self, action):
         envAction = self.envActionFromAction(action)
         self.action_logs.append((action, envAction))
-        if (envAction not in self.validActionsEnv):
-            print("Not a valid action")
-            print(action, envAction)
-            print(self.validActions)
-            print(self.validActionsEnv)
-            return
         return self.envAction(envAction)
     
     def envAction(self, action):

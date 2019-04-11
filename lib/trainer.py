@@ -3,6 +3,9 @@ import utils
 import numpy as np
 import copy
 
+def entropy(p):
+    return -np.sum(np.exp(p) * p, -1)
+
 class Trainer():
     agents = []
     session = None
@@ -27,6 +30,7 @@ class Trainer():
         obs_before_skips = [None, None]
         act_before_skips = [0, 0]
         
+        entropy_log = [[], []]
         
         while not observation["end"] and n_steps != 0:
             turn = observation["turn"]
@@ -36,8 +40,10 @@ class Trainer():
             adv_before_skips[turn] = oldAdv
             
             n_steps -= 1
-            action = curAgent.getAction(observation, validActions, validActionsEnv, evaluate = evaluate)
+            action, log_probs = curAgent.getAction(observation, validActions, validActionsEnv, evaluate = evaluate)
             n_observation, validActions, validActionsEnv = curSession.action(action)
+            
+            entropy_log[turn].append(entropy(log_probs))
             
             if (record):
                 if(turn == n_observation["turn"]):
@@ -71,7 +77,7 @@ class Trainer():
         if(observation["end"] and resetAfterGame):
             curSession.reset()
         
-        return result
+        return result, entropy_log
             
     def train(self):
         losses = []

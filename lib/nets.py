@@ -43,67 +43,69 @@ class ActorNetwork(nn.Module):
         
         self.field2vec = nn.Sequential(
             nn.Linear(self.MAIN_SIZE, 512,), 
-            nn.ELU(), 
+            nn.Tanh(), 
             nn.Linear(512, VEC_SIZE))
 
 
         self.skip_qvalue = nn.Sequential(
             nn.Linear(self.MAIN_SIZE, 512,), 
-            nn.ELU(), 
+            nn.Tanh(), 
             nn.Linear(512, 1))
 
         self.card2vec = nn.Sequential(
             nn.Linear(self.CARD_SIZE, 512,), 
-            nn.ELU(), 
+            nn.Tanh(), 
             nn.Linear(512, VEC_SIZE))
 
         self.attack_units_qvalues = nn.Sequential(
             nn.Linear(self.VEC_SIZE, 512,),  #[field, attacker_card, target_card]
-            nn.ELU(), 
+            nn.Tanh(), 
             nn.Linear(512, 1))
 
         self.core2vec = nn.Sequential(
             nn.Linear(self.CORE_SIZE, 512,), 
-            nn.ELU(), 
+            nn.Tanh(), 
             nn.Linear(512, VEC_SIZE))
 
         self.pile2vec = nn.Sequential(
             nn.Linear(self.PILE_SIZE, 512,), 
-            nn.ELU(), 
+            nn.Tanh(), 
             nn.Linear(512, VEC_SIZE))
 
         self.hand2vec = nn.Sequential(
             nn.Linear(self.HAND_SIZE, 512,), 
-            nn.ELU(), 
+            nn.Tanh(), 
             nn.Linear(512, VEC_SIZE))
 
         self.attack_core_qvalues = nn.Sequential(
             nn.Linear(VEC_SIZE, 512,),  #[field, attacker_card, core]
-            nn.ELU(), 
+            nn.Tanh(), 
             nn.Linear(512, 512,),
-            nn.ELU(),
+            nn.Tanh(),
             nn.Linear(512, 1))
 
         self.play_card_qvalues = nn.Sequential(
             nn.Linear(VEC_SIZE, 512,),  #[field, pile]
-            nn.ELU(), 
+            nn.Tanh(), 
             nn.Linear(512, 512,),
-            nn.ELU(),
+            nn.Tanh(),
             nn.Linear(512, 1))
 
         self.play_hand_card_qvalues = nn.Sequential(
             nn.Linear(VEC_SIZE, 512,),  #[field, hand]
-            nn.ELU(), 
+            nn.Tanh(), 
             nn.Linear(512, 512,),
-            nn.ELU(),
+            nn.Tanh(),
             nn.Linear(512, 1))
 
         self.move_card_qvalues = nn.Sequential(
             nn.Linear(VEC_SIZE, 512,),  #[field, pile]
-            nn.ELU(), 
+            nn.Tanh(), 
             nn.Linear(512, 512,),
-            nn.ELU(),
+            nn.Tanh(),
             nn.Linear(512, 1))
+        
+        self.log_prob = nn.LogSoftmax()
 
     def get_qvalues_from_state(self, state):
         main, our_units, enemy_units, enemy_core, our_piles, our_hand = utils.parse_state(state)
@@ -125,7 +127,7 @@ class ActorNetwork(nn.Module):
             torch.from_numpy(our_hand).float()
         )
 
-        return qvalues
+        return self.log_prob(qvalues)
 
     def compute_qvalue(self, field, card, target_card, core, pile, hand):
         field_vec = self.field2vec(field)
@@ -188,13 +190,5 @@ class ActorNetwork(nn.Module):
             should_explore = np.zeros(batch_size)
         
         actions = np.where(should_explore, random_actions, best_actions)
-        for i in range(len(actions)):
-            if(valid_actions[i][actions[i]] == 0):
-                print("WHAT THE FUCK")
-                print(valid_actions)
-                print(actions)
-                print(qvalues)
-                print(random_actions)
-                print(best_actions)
         return actions
 
