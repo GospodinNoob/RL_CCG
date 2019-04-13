@@ -52,7 +52,7 @@ class ARagent(Agent):
     
 class A2Cagent(Agent):
     
-    def __init__(self, actorNetwork, valueNetwork, turn, replay ,n_actions=71, VEC_SIZE=100, epsilon = 0.2, entropy_coef = 100):
+    def __init__(self, actorNetwork, valueNetwork, turn, replay ,n_actions=71, VEC_SIZE=100, epsilon = 0.2, entropy_coef = 0.01):
         self.n_actions = n_actions
         self.turn = turn
         self.epsilon = epsilon
@@ -97,7 +97,7 @@ class A2Cagent(Agent):
     def train(self):
         self.epsilon *= 0.999
         self.epsilon = max(0.1, self.epsilon)
-        states, actions, rewards, indices, weights = self.getRecord(400)
+        states, actions, rewards, indices, weights = self.getRecord(100)
         actions_var = Variable(torch.Tensor(actions).view(-1, self.n_actions))
         self.actor_network_optim.zero_grad()
         action_log_probs = self.actor_network.get_qvalues_from_state(states)
@@ -117,7 +117,7 @@ class A2Cagent(Agent):
         actor_network_loss = torch.sum(action_log_probs * actions_var, 1) 
         actor_network_loss *= advantages * weights# * 0.0005
         prios = torch.abs(advantages) + 1e-5
-        actor_network_loss = -torch.mean(actor_network_loss)# - entropy_loss * self.entropy_coef
+        actor_network_loss = -torch.mean(actor_network_loss) - entropy_loss * self.entropy_coef
         actor_network_loss.backward()
         #actor_network_loss.backward()
         self.replay.update_priorities(indices, prios.data.cpu().numpy())

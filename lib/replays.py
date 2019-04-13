@@ -69,7 +69,7 @@ class FlatReplay(Replay):
         return obs, actions, rewards
 
 class PrioritizedReplay(Replay):
-    def __init__(self, capacity=10000, prob_alpha=0.6, gamma=0.99):
+    def __init__(self, capacity=1000, prob_alpha=0.6, gamma=0.99):
         self.prob_alpha = prob_alpha
         self.gamma = gamma
         self.capacity = capacity
