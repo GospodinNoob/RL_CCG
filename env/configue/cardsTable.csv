@@ -1,3 +1,5 @@
 keyName,type,damage,armour,maxHealth,cost,priority,charge,baseActivations
 HS_PUDDLESTOMPER,minion,3,0,2,2,0,0,1
 HS_RIVER_CROCOLISK,minion,2,0,3,2,0,0,1
+HS_THRALLMAR_FARSEER,minion,2,0,3,3,0,0,2
+HS_DUSKBOAR,minion,4,0,1,2,0,0,1
