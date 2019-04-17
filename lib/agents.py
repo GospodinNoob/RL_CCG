@@ -66,18 +66,22 @@ class Node:
     
     parent = None          #parent Node
     value_sum = 0.         #sum of state values from all visits (numerator)
-    times_visited = 0      #counter of visits (denominator)
+    times_visited = 0
+    n_actions = 1
 
     
-    def __init__(self,parent, action, turn):
+    def __init__(self, parent, action, turn, n_actions=71):
         self.parent = parent
         self.action = action   
+        self.n_actions = n_actions
         self.turn = turn
         self.children = set()       #set of child nodes
-
-        #get action outcome and save it
-        res = env.get_result(parent.snapshot, action)
-        self.snapshot,self.observation,self.immediate_reward,self.is_done,_ = res
+        self.snapshot = copy.deepcopy(parent.snapshot)
+        self.immediate_reward = self.snapshot.getHealthAdvantage(1 - self.turn)
+        _, _, validActionsEnv = self.snapshot.processNewStateInfo()
+        obs, _ , _ = self.snapshot.envAction(random.choice(validActionsEnv))
+        self.immediate_reward = self.snapshot.getHealthAdvantage(1 - self.turn) - self.immediate_reward
+        self.is_done = obs["end"] or obs["turn"] != self.turn
         
         
     def is_leaf(self):
@@ -116,8 +120,8 @@ class Node:
         return best_child.select_best_leaf()
     
     def expand(self):
-        for action in range(n_actions):
-            self.children.add(Node(self,action))
+        for action in range(self.n_actions):
+            self.children.add(Node(self,action,self.turn))
         
         return self.select_best_leaf()
     
@@ -125,7 +129,6 @@ class Node:
             
         session = copy.deepcopy(self.snapshot)
         _, _, validActionsEnv = session.processNewStateInfo()
-        obs = self.observation
         is_done = self.is_done
         
         totalRew = 0
@@ -133,9 +136,9 @@ class Node:
         for i in range(t_max):
             if is_done:
                 break
-            obs, _ , validActionsEnv = session.action(random.choice(validActionsList))
+            obs, _ , validActionsEnv = session.envAction(random.choice(validActionsEnv))
             rew = session.getHealthAdvantage(1 - self.turn)
-            is_done = observation["end"] or obs["turn"] != self.turn
+            is_done = obs["end"] or obs["turn"] != self.turn
             totalRew += rew
 
         return totalRew
@@ -156,63 +159,22 @@ class Node:
             del child
             
 class Root(Node):
-    def __init__(self,snapshot = None,observation = None):
+    def __init__(self,snapshot = None, turn = 0):
         self.parent = self.action = None
         self.children = set()
+        self.turn = turn
         
         self.snapshot = snapshot
-        self.observation = observation
         self.immediate_reward = 0
         self.is_done=False
     
     @staticmethod
     def from_node(node):
-        root = Root(node.snapshot,node.observation)
+        root = Root(node.snapshot)
         copied_fields = ["value_sum","times_visited","children","is_done"]
         for field in copied_fields:
             setattr(root,field,getattr(node,field))
         return root
-    
-class MCTSAgent(Agent):
-    
-    self.globalRoot = None
-    
-    def __init__(self, turn, n_actions=71):
-        self.turn = turn
-        self.globalRoot = Root()
-        self.root = self.globalRoot
-        
-    def getAction(self, observation, validActions, validEnvActions, evaluate = False):
-        m = None
-        best_child = None
-        children = root.children
-        
-        for i in children:
-            if(m == None):
-                best_child = i
-                m = i.ucb_score() 
-            elif (i.ucb_score() > m):
-                best_child = i
-                m = i.ucb_score()
-                
-        self.root = Root.from_node(best_child)
-        if(self.root.is_leaf()):
-            for _ in range(n_iters):
-                node = root.select_best_leaf()
-
-                if node.is_done:
-                    node.propagate(0)
-
-                else:
-                    node.expand()
-                    rew = node.rollout()
-                    node.propagate(rew)
-        return best_child.action
-    
-    def train(self):
-        pass
-    
-    
     
 class A2Cagent(Agent):
     
