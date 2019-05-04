@@ -24,8 +24,11 @@ class Trainer():
             curSession = session
         if (n_steps < 0):
             curSession.reset()
+        validActionsEnv = None
+        validActions = None
+        observation = None
             
-        observation, validActions, validActionsEnv = self.session.processNewStateInfo()
+        observation, validActions, validActionsEnv = curSession.processNewStateInfo()
         adv_before_skips = [0, 0]
         obs_before_skips = [None, None]
         act_before_skips = [0, 0]
@@ -40,9 +43,9 @@ class Trainer():
             adv_before_skips[turn] = oldAdv
             
             n_steps -= 1
-            action, log_probs = curAgent.getAction(observation, validActions, validActionsEnv, evaluate = evaluate)
+            observation, validActions, validActionsEnv = curSession.processNewStateInfo()
+            action, log_probs = curAgent.getAction(observation, validActions, validActionsEnv, session = curSession, evaluate = evaluate)
             n_observation, validActions, validActionsEnv = curSession.action(action)
-            
             entropy_log[turn].append(entropy(log_probs))
             
             if (record):

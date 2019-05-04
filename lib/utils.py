@@ -115,7 +115,7 @@ def createStateObservation(state):
 
     observations["cores"] = cores
     observations["units"] = units
-
+    #print(len(np.hstack(tuple(observations["table"])).tolist()), len(pilesObs.tolist()), len(handsObs.tolist()))
     return observations
 
 import random
