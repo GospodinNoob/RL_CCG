@@ -15,6 +15,12 @@ class Trainer():
         self.session = session
         self.agents = agents
         
+    def dropSession(self):
+        if(self.session != None):
+            self.session.reset()
+        for i in self.agents:
+            i.dropPlan()
+        
     def playGame(self, session = None, record = False, replay_id = 0, evaluate = True, resetAfterGame = True):
         return self.playSteps(-1, session, record = record, replay_id = replay_id, evaluate = evaluate, resetAfterGame = resetAfterGame)
         
@@ -24,6 +30,8 @@ class Trainer():
             curSession = session
         if (n_steps < 0):
             curSession.reset()
+            for i in self.agents:
+                i.dropPlan()
         validActionsEnv = None
         validActions = None
         observation = None
@@ -45,12 +53,14 @@ class Trainer():
             n_steps -= 1
             observation, validActions, validActionsEnv = curSession.processNewStateInfo()
             action, log_probs = curAgent.getAction(observation, validActions, validActionsEnv, session = curSession, evaluate = evaluate)
+            if(validActions[action] == 0):
+                print("wtf")
+                return
             n_observation, validActions, validActionsEnv = curSession.action(action)
             entropy_log[turn].append(entropy(log_probs))
-            
             if (record):
                 if(turn == n_observation["turn"]):
-                    reward = curSession.getHealthAdvantage(turn) - oldAdv# - 0.1
+                    reward = curSession.getHealthAdvantage(turn) - oldAdv# + len(observation["battleGround"]["table"][turn]) - 1# - 0.1
                     curAgent.record(replay_id,
                                     utils.createStateObservation(observation),
                                     [int(k == action) for k in range(self.n_actions)], 
@@ -79,6 +89,8 @@ class Trainer():
         
         if(observation["end"] and resetAfterGame):
             curSession.reset()
+            for i in self.agents:
+                i.dropPlan()
         
         return result, entropy_log
             
